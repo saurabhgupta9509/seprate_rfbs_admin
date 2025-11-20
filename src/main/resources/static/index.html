@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFBS - Admin Panel</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🛡️ RFBS - Admin Panel</h1>
+        <div class="admin-controls">
+            <div class="agent-management">
+                <h3>Agent Management</h3>
+                <div class="agent-controls">
+                    <input type="text" id="agentUrl" placeholder="Agent URL (http://localhost:8081)" value="http://localhost:8081">
+                    <button onclick="connectAgent()">Connect</button>
+                    <span id="connectionStatus" class="status disconnected">Disconnected</span>
+                </div>
+            </div>
+
+            <!-- Permission Management Panel -->
+            <div class="permission-panel hidden" id="permissionPanel">
+                <h4>🛡️ Folder Permissions</h4>
+                <div class="permission-controls">
+                    <label>Path: <span id="currentPermissionPath"></span></label>
+
+                    <div class="permission-options">
+                        <label><input type="checkbox" id="permReadFolder" checked> Read/Browse</label>
+                        <label><input type="checkbox" id="permWriteFolder"> Write/Modify</label>
+                        <label><input type="checkbox" id="permDownloadFolder"> Download</label>
+                        <label><input type="checkbox" id="permExecuteFolder"> Execute</label>
+                        <label><input type="checkbox" id="permSearchFolder" checked> Search</label>
+                        <label><input type="checkbox" id="permDeleteFolder"> Delete</label> <!-- ADD THIS LINE -->
+                    </div>
+
+                    <div class="permission-actions">
+                        <button onclick="applyFolderPermissions()">Apply</button>
+                        <button onclick="closePermissionPanel()">Cancel</button>
+                        <button onclick="resetFolderPermissions()" class="danger">Reset to Default</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="session-info">
+                <h4>Session Information</h4>
+                <div id="sessionDetails">
+                    <div>Agent: <span id="agentName">Not Connected</span></div>
+                    <div>Restricted Folders: <span id="restrictedCount">0</span></div>
+                    <div>Status: <span id="adminStatus">🛡️ Full Control</span></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="file-browser">
+        <div class="breadcrumb">
+            <button onclick="navigateTo('/')">🏠 Root</button>
+            <span id="currentPath">/</span>
+        </div>
+
+        <div class="toolbar">
+            <button id="btnRefresh" onclick="refresh()">🔄 Refresh</button>
+            <button id="btnGoUp" onclick="goUp()">⬆️ Up</button>
+            <input type="text" id="searchInput" placeholder="Search files...">
+            <button id="btnSearch" onclick="searchFiles()">🔍 Search</button>
+            <button id="btnDownload" onclick="downloadCurrent()">📥 Download Current</button>
+        </div>
+
+        <div class="file-list">
+            <table id="fileTable">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Modified</th>
+                    <th>Permissions</th>
+                    <th>Admin Controls</th>
+                </tr>
+                </thead>
+                <tbody id="fileList">
+                <!-- Files will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="loading" class="loading hidden">Loading...</div>
+        <div id="errorMessage" class="error hidden"></div>
+
+        <div class="admin-log">
+            <h4>🛡️ Security Log</h4>
+            <div id="securityLog" class="log-container"></div>
+        </div>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
