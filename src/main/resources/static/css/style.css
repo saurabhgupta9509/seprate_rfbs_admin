@@ -1,4 +1,3 @@
-/* style.css */
 * {
     margin: 0;
     padding: 0;
@@ -10,6 +9,7 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 20px;
+    position: relative;
 }
 
 .container {
@@ -17,6 +17,192 @@ body {
     margin: 0 auto;
 }
 
+/* ===== PERMISSION MODAL - FIXED POPUP ===== */
+.permission-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.permission-modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    background: #34495e;
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.3em;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.path-display {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3498db;
+    font-size: 16px;
+}
+
+.permission-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin: 25px 0;
+}
+
+.permission-options label {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.2s;
+    border: 2px solid #e9ecef;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.permission-options label:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.permission-options input[type="checkbox"] {
+    margin-right: 15px;
+    transform: scale(1.4);
+    cursor: pointer;
+}
+
+.permission-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #e9ecef;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Remove any conflicting styles */
+.modal-overlay,
+.permission-panel,
+.permission-modal-overlay {
+    display: none !important;
+}
+
+/* Your existing styles for header, file browser, etc. */
 header {
     background: rgba(255, 255, 255, 0.95);
     padding: 20px;
@@ -32,7 +218,6 @@ header h1 {
     text-align: center;
 }
 
-/* Admin Controls */
 .admin-controls {
     display: grid;
     grid-template-columns: 2fr 1fr;
@@ -40,11 +225,12 @@ header h1 {
     margin-bottom: 20px;
 }
 
-.agent-management, .session-info {
+.agent-management,
+.session-info {
     background: rgba(255, 255, 255, 0.95);
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .agent-controls {
@@ -60,26 +246,6 @@ header h1 {
     border: 2px solid #ddd;
     border-radius: 6px;
     font-size: 14px;
-}
-
-button {
-    padding: 10px 20px;
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.3s;
-}
-
-button:hover {
-    background: #2980b9;
-}
-
-button:disabled {
-    background: #bdc3c7;
-    cursor: not-allowed;
 }
 
 .status {
@@ -99,62 +265,6 @@ button:disabled {
     color: white;
 }
 
-.permission-controls {
-    margin-top: 15px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #3498db;
-}
-
-.permission-controls h4 {
-    margin-bottom: 10px;
-    color: #2c3e50;
-}
-
-#permissionLevel {
-    width: 100%;
-    padding: 10px;
-    border: 2px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    margin-bottom: 10px;
-}
-
-#customPermissions {
-    background: white;
-    padding: 15px;
-    border-radius: 6px;
-    border: 1px solid #e1e8ed;
-}
-
-#customPermissions label {
-    display: block;
-    margin-bottom: 8px;
-    cursor: pointer;
-}
-
-#customPermissions input[type="checkbox"] {
-    margin-right: 8px;
-}
-
-.session-info {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.session-info h4 {
-    margin-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.3);
-    padding-bottom: 8px;
-}
-
-#sessionDetails div {
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-/* File Browser */
 .file-browser {
     background: rgba(255, 255, 255, 0.95);
     padding: 20px;
@@ -267,17 +377,49 @@ tbody tr.no-permission:hover {
     line-height: 22px;
 }
 
-.can-read { background: #27ae60; color: white; }
-.no-read { background: #e74c3c; color: white; opacity: 0.3; }
+.can-read {
+    background: #27ae60;
+    color: white;
+}
 
-.can-write { background: #f39c12; color: white; }
-.no-write { background: #e74c3c; color: white; opacity: 0.3; }
+.no-read {
+    background: #e74c3c;
+    color: white;
+    opacity: 0.3;
+}
 
-.can-execute { background: #3498db; color: white; }
-.no-execute { background: #e74c3c; color: white; opacity: 0.3; }
+.can-write {
+    background: #f39c12;
+    color: white;
+}
 
-.can-download { background: #9b59b6; color: white; }
-.no-download { background: #e74c3c; color: white; opacity: 0.3; }
+.no-write {
+    background: #e74c3c;
+    color: white;
+    opacity: 0.3;
+}
+
+.can-execute {
+    background: #3498db;
+    color: white;
+}
+
+.no-execute {
+    background: #e74c3c;
+    color: white;
+    opacity: 0.3;
+}
+
+.can-download {
+    background: #9b59b6;
+    color: white;
+}
+
+.no-download {
+    background: #e74c3c;
+    color: white;
+    opacity: 0.3;
+}
 
 /* Action buttons */
 .action-buttons {
@@ -294,81 +436,57 @@ tbody tr.no-permission:hover {
     transition: all 0.2s;
 }
 
-.download-btn { background: #27ae60; color: white; }
-.download-btn:hover { background: #219653; }
+.download-btn {
+    background: #27ae60;
+    color: white;
+}
 
-.view-btn { background: #3498db; color: white; }
-.view-btn:hover { background: #2980b9; }
+.download-btn:hover {
+    background: #219653;
+}
 
-.edit-btn { background: #f39c12; color: white; }
-.edit-btn:hover { background: #e67e22; }
+.view-btn {
+    background: #3498db;
+    color: white;
+}
+
+.view-btn:hover {
+    background: #2980b9;
+}
+
+.edit-btn {
+    background: #f39c12;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #e67e22;
+}
 
 .delete-btn {
     background: #e74c3c;
     color: white;
 }
+
 .delete-btn:hover {
     background: #c0392b;
 }
 
 /* Delete permission badge */
-.can-delete { background: #e74c3c; color: white; }
-.no-delete { background: #e74c3c; color: white; opacity: 0.3; }
-
-/* Permission-based UI states */
-.admin-only {
-    display: inline-block;
+.can-delete {
+    background: #e74c3c;
+    color: white;
 }
 
-/* Modal improvements */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    max-width: 90%;
-    max-height: 90%;
-    display: flex;
-    flex-direction: column;
-    animation: modalAppear 0.3s ease-out;
-}
-
-@keyframes modalAppear {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-
-.readonly-mode .admin-only {
-    display: none !important;
-}
-
-.readonly-mode button:not(#btnRefresh):not(#btnGoUp):not(#btnSearch) {
-    display: none !important;
-}
-
-.restricted-mode .download-btn {
-    display: none !important;
-}
-
-.restricted-mode #btnDownload {
-    display: none !important;
+.no-delete {
+    background: #e74c3c;
+    color: white;
+    opacity: 0.3;
 }
 
 /* Loading and Error States */
-.loading, .error {
+.loading,
+.error {
     padding: 20px;
     text-align: center;
     border-radius: 8px;
@@ -398,7 +516,7 @@ tbody tr.no-permission:hover {
     background: rgba(255, 255, 255, 0.95);
     padding: 15px;
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .admin-log h4 {
@@ -427,10 +545,25 @@ tbody tr.no-permission:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
-.log-info { border-color: #3498db; color: #3498db; }
-.log-warning { border-color: #f39c12; color: #f39c12; }
-.log-error { border-color: #e74c3c; color: #e74c3c; }
-.log-security { border-color: #9b59b6; color: #9b59b6; }
+.log-info {
+    border-color: #3498db;
+    color: #3498db;
+}
+
+.log-warning {
+    border-color: #f39c12;
+    color: #f39c12;
+}
+
+.log-error {
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.log-security {
+    border-color: #9b59b6;
+    color: #9b59b6;
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -454,7 +587,8 @@ tbody tr.no-permission:hover {
         flex-direction: column;
     }
 
-    th, td {
+    th,
+    td {
         padding: 8px 10px;
         font-size: 12px;
     }
@@ -473,7 +607,8 @@ tbody tr.no-permission:hover {
         font-size: 1.5em;
     }
 
-    .admin-controls, .file-browser {
+    .admin-controls,
+    .file-browser {
         padding: 15px;
     }
 }
@@ -494,4 +629,160 @@ tbody tr.no-permission:hover {
     border: none;
     border-radius: 5px;
     cursor: pointer;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}
+
+.status.offline {
+    background: #f39c12;
+    color: white;
+}
+
+/* ===== PERMISSION MODAL STYLES ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.permission-modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    background: #34495e;
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.permission-controls {
+    margin-bottom: 0;
+}
+
+.permission-controls label:first-child {
+    display: block;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.permission-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.permission-options label {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.2s;
+    border: 1px solid #e9ecef;
+}
+
+.permission-options label:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+}
+
+.permission-options input[type="checkbox"] {
+    margin-right: 12px;
+    transform: scale(1.3);
+}
+
+.permission-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Remove old permission panel styles */
+.permission-panel {
+    display: none !important;
+}
+
+/* Remove old modal styles that might conflict */
+.modal {
+    display: none !important;
+}
+
+.modal-content {
+    display: none !important;
 }

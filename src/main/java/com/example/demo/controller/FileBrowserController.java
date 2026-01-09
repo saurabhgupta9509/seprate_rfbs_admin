@@ -53,6 +53,14 @@ public class FileBrowserController {
         return file.getName();
     }
 
+    @PostMapping("/delete")
+    public Mono<ResponseEntity<String>> deleteFile(@RequestBody DirectoryRequest request) { // DirectoryRequest has agentUrl and path
+        // Proxy the delete request to the Agent
+        return agentService.deleteFile(request.getAgentUrl(), request.getPath())
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.badRequest().body("{\"success\": false, \"error\": \"No response from agent\"}"));
+    }
+
     @PostMapping("/search")
     public Mono<ResponseEntity<String>> searchFiles(@RequestBody SearchRequest request) {
         return agentService.searchFiles(request.getAgentUrl(), request.getPath(), request.getQuery())

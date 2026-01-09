@@ -17,11 +17,67 @@ class FileBrowser {
             download: true,
             execute: false,
             search: true,
-            delete: false // Added delete permission
+            delete: false
         };
 
         // Initialize root with full access
         this.folderPermissions.set('/', { ...this.defaultPermissions });
+
+        // Initialize event listeners
+        this.initializeEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Handle Enter key in search input
+        document.getElementById('connectButton').addEventListener('click', () => {
+            this.connectAgent();
+        });
+
+        document.getElementById('btnRefresh').addEventListener('click', () => {
+            this.refresh();
+        });
+
+        document.getElementById('btnGoUp').addEventListener('click', () => {
+            this.goUp();
+        });
+
+        document.getElementById('btnSearch').addEventListener('click', () => {
+            this.searchFiles();
+        });
+
+        document.getElementById('btnDownload').addEventListener('click', () => {
+            this.downloadCurrent();
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchFiles();
+            }
+        });
+
+        // Close permission panel when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('permissionModal');
+            if (!modal.classList.contains('hidden') && e.target === modal) {
+                this.closePermissionPanel();
+            }
+        });
+
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                this.closeModal();
+            }
+        });
+
+        // Context menu
+        document.addEventListener('contextmenu', (e) => {
+            const row = e.target.closest('tr');
+            if (row && row.classList.contains('directory')) {
+                e.preventDefault();
+                this.showContextMenu(e.pageX, e.pageY, row);
+            }
+        });
     }
 
     // Normalize path for consistency
@@ -77,7 +133,7 @@ class FileBrowser {
         const normalizedPath = this.normalizePath(path);
         const permissions = this.getFolderPermissions(normalizedPath);
 
-        switch(operation) {
+        switch (operation) {
             case 'read': return permissions.read;
             case 'write': return permissions.write;
             case 'download': return permissions.download;
@@ -169,13 +225,29 @@ class FileBrowser {
             });
 
             const result = await response.json();
+            const isOfflineFallback = result.offline === true;
+            const isAgentUnreachable = result.offline_proxy_fail === true;
+
+            if (isAgentUnreachable) {
+                this.showError('❌ Agent is unreachable. Check network status.');
+                this.setConnectionStatus(false, 'Unreachable');
+                this.logSecurity(`Agent Unreachable: ${this.agentUrl}`, 'error');
+                return; // Stop processing since we can't get data
+            }
 
             if (result.success) {
                 this.currentPath = result.path;
                 this.displayFiles(result.files);
-                this.updateBreadcrumb();
+                this.updateBreadcrumb(isOfflineFallback ? ' (Offline Mode)' : '');
                 this.showError('');
-                this.logSecurity(`Directory accessed: ${normalizedPath}`, 'info');
+
+                if (isOfflineFallback) {
+                    this.setConnectionStatus(true, 'Working Offline');
+                    this.logSecurity(`Directory accessed via local fallback: ${this.currentPath}`, 'warning');
+                } else {
+                    this.setConnectionStatus(true, 'Connected');
+                    this.logSecurity(`Directory accessed: ${this.currentPath}`, 'info');
+                }
             } else {
                 this.showError('Agent error: ' + result.error);
                 this.logSecurity(`Agent OS permission issue: ${normalizedPath} - ${result.error}`, 'error');
@@ -331,7 +403,6 @@ class FileBrowser {
         }
     }
 
-    // NEW: Delete file/folder method
     async deleteFile(filePath) {
         if (!this.isConnected) {
             this.showError('Not connected to any agent');
@@ -340,10 +411,10 @@ class FileBrowser {
 
         const normalizedPath = this.normalizePath(filePath);
 
-        // ADMIN CONTROLS THIS
+        // UI-SIDE CHECK (This is the Admin UI's *own* policy, which should match the Agent's)
         if (!this.hasPermission(normalizedPath, 'delete')) {
-            this.showError('Admin has restricted delete operations in this location');
-            this.logSecurity(`Delete blocked by admin: ${normalizedPath}`, 'warning');
+            this.showError('Admin has restricted delete operations in this location (UI Block)');
+            this.logSecurity(`Delete blocked by Admin UI policy: ${normalizedPath}`, 'warning');
             return;
         }
 
@@ -355,7 +426,6 @@ class FileBrowser {
         this.showLoading(true);
 
         try {
-            // Note: You'll need to add a delete endpoint in your Rust agent
             const request = {
                 agentUrl: this.agentUrl,
                 path: normalizedPath
@@ -374,12 +444,14 @@ class FileBrowser {
                 this.logSecurity(`File/folder deleted: ${normalizedPath}`, 'info');
                 this.refresh(); // Refresh the current view
             } else {
-                throw new Error(result.error || 'Delete failed');
+                const errorMessage = result.error || 'Delete failed';
+                this.showError('❌ Operation Blocked: ' + errorMessage);
+                this.logSecurity(`DLP Blocked Delete: ${normalizedPath} - ${errorMessage}`, 'error');
             }
         } catch (error) {
-            console.error('❌ Delete error:', error);
-            this.showError('Delete failed: ' + error.message);
-            this.logSecurity(`Delete failed: ${normalizedPath} - ${error.message}`, 'error');
+            console.error('❌ Delete network error:', error);
+            this.showError('Delete network error: ' + error.message);
+            this.logSecurity(`Delete failed due to network: ${normalizedPath} - ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
@@ -465,7 +537,7 @@ class FileBrowser {
                 // Permission management button for directories
                 if (file.is_directory) {
                     actionButtons += `
-                        <button class="action-btn permission-btn" onclick="event.stopPropagation(); openPermissionPanel('${this.escapeHtml(normalizedPath)}')" title="Manage Permissions">
+                        <button class="action-btn permission-btn" onclick="event.stopPropagation(); fileBrowser.openPermissionPanel('${this.escapeHtml(normalizedPath)}')" title="Manage Permissions">
                             🛡️
                         </button>
                     `;
@@ -531,7 +603,7 @@ class FileBrowser {
         this.showModal(`
             <div class="modal-header">
                 <h3>🖼️ ${fileName}</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <button class="close-btn" onclick="fileBrowser.closeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <img src="/api/download?agentUrl=${encodeURIComponent(this.agentUrl)}&path=${encodeURIComponent(filePath)}"
@@ -545,7 +617,7 @@ class FileBrowser {
             </div>
             <div class="modal-footer">
                 <button onclick="fileBrowser.downloadFile('${this.escapeHtml(filePath)}', false)" class="btn-primary">📥 Download</button>
-                <button onclick="closeModal()" class="btn-secondary">Close</button>
+                <button onclick="fileBrowser.closeModal()" class="btn-secondary">Close</button>
             </div>
         `, 'image-modal');
     }
@@ -554,7 +626,7 @@ class FileBrowser {
         this.showModal(`
             <div class="modal-header">
                 <h3>📄 ${fileName}</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <button class="close-btn" onclick="fileBrowser.closeModal()">&times;</button>
             </div>
             <div class="modal-body" style="height: 70vh;">
                 <iframe src="/api/download?agentUrl=${encodeURIComponent(this.agentUrl)}&path=${encodeURIComponent(filePath)}"
@@ -568,7 +640,7 @@ class FileBrowser {
             </div>
             <div class="modal-footer">
                 <button onclick="fileBrowser.downloadFile('${this.escapeHtml(filePath)}', false)" class="btn-primary">📥 Download</button>
-                <button onclick="closeModal()" class="btn-secondary">Close</button>
+                <button onclick="fileBrowser.closeModal()" class="btn-secondary">Close</button>
             </div>
         `, 'pdf-modal');
     }
@@ -581,14 +653,14 @@ class FileBrowser {
             this.showModal(`
                 <div class="modal-header">
                     <h3>📝 ${fileName}</h3>
-                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                    <button class="close-btn" onclick="fileBrowser.closeModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <p>Text file downloaded. Please open the downloaded file to view its contents.</p>
                     <p>For security reasons, text files are downloaded instead of displayed directly in the browser.</p>
                 </div>
                 <div class="modal-footer">
-                    <button onclick="closeModal()" class="btn-secondary">Close</button>
+                    <button onclick="fileBrowser.closeModal()" class="btn-secondary">Close</button>
                 </div>
             `, 'text-modal');
         });
@@ -605,9 +677,14 @@ class FileBrowser {
         document.body.appendChild(modal);
     }
 
-    // Utility methods (formatFileSize, updateBreadcrumb, goUp, refresh, setConnectionStatus, showError, showLoading, escapeHtml, logSecurity)
-    // ... keep all your existing utility methods the same ...
+    closeModal() {
+        const modal = document.querySelector('.modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
 
+    // Utility methods
     formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -642,16 +719,23 @@ class FileBrowser {
         this.loadDirectory(this.currentPath);
     }
 
-    setConnectionStatus(connected) {
+    setConnectionStatus(connected, message = 'Disconnected') {
         this.isConnected = connected;
         const statusElement = document.getElementById('connectionStatus');
+
+        let statusMessage = message;
+
         if (connected) {
-            statusElement.textContent = 'Connected';
-            statusElement.className = 'status connected';
+            if (message === 'Working Offline') {
+                statusElement.className = 'status offline';
+            } else {
+                statusElement.className = 'status connected';
+            }
         } else {
             statusElement.textContent = 'Disconnected';
             statusElement.className = 'status disconnected';
         }
+        statusElement.textContent = statusMessage;
     }
 
     showError(message) {
@@ -688,118 +772,152 @@ class FileBrowser {
         logContainer.appendChild(logEntry);
         logContainer.scrollTop = logContainer.scrollHeight;
     }
-}
 
-// Global modal function
-function closeModal() {
-    const modal = document.querySelector('.modal');
-    if (modal) {
-        modal.remove();
+    // Permission Panel Methods
+    // Permission Panel Methods
+    openPermissionPanel(path) {
+        this.currentEditingPath = path;
+        const modal = document.getElementById('permissionModal');
+        const pathSpan = document.getElementById('currentPermissionPath');
+
+        pathSpan.textContent = path;
+
+        // Load current permissions
+        const currentPerms = this.getFolderPermissions(path);
+
+        document.getElementById('permReadFolder').checked = currentPerms.read;
+        document.getElementById('permWriteFolder').checked = currentPerms.write;
+        document.getElementById('permDownloadFolder').checked = currentPerms.download;
+        document.getElementById('permExecuteFolder').checked = currentPerms.execute;
+        document.getElementById('permSearchFolder').checked = currentPerms.search;
+        document.getElementById('permDeleteFolder').checked = currentPerms.delete;
+
+        modal.classList.remove('hidden');
+    }
+
+    closePermissionPanel() {
+        const modal = document.getElementById('permissionModal');
+        modal.classList.add('hidden');
+        this.currentEditingPath = '';
+    }
+
+    applyFolderPermissions() {
+        if (!this.currentEditingPath || !this.agentInfo || !this.isConnected) {
+            this.showError('Not connected or no path selected.');
+            return;
+        }
+
+        const newPerms = {
+            can_read: document.getElementById('permReadFolder').checked,
+            can_write: document.getElementById('permWriteFolder').checked,
+            can_download: document.getElementById('permDownloadFolder').checked,
+            can_execute: document.getElementById('permExecuteFolder').checked,
+            can_search: document.getElementById('permSearchFolder').checked,
+            can_delete: document.getElementById('permDeleteFolder').checked
+        };
+
+        const path = this.normalizePath(this.currentEditingPath);
+        const agentUrl = this.agentUrl;
+        const agentId = this.agentInfo.agent_id || 'temp-id';
+
+        this.showLoading(true);
+
+        fetch(`/api/admin/policy/set-rule?agentId=${encodeURIComponent(agentId)}&agentUrl=${encodeURIComponent(agentUrl)}&path=${encodeURIComponent(path)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newPerms)
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    this.setFolderPermissions(path, newPerms);
+                    this.logSecurity(`DLP Policy successfully set for: ${path}`, 'security');
+                    this.closePermissionPanel();
+                    this.showSuccessPopup(`DLP Policy applied to ${path}`, 2000);
+                } else {
+                    this.showError('Policy push failed: ' + (result.error || result.message));
+                    this.logSecurity(`Failed to push DLP Policy: ${path}`, 'error');
+                }
+            })
+            .catch(error => {
+                this.showError('Network error while setting policy: ' + error.message);
+                this.logSecurity(`Network failure to Admin Server: ${error.message}`, 'error');
+            })
+            .finally(() => {
+                this.showLoading(false);
+            });
+    }
+
+    resetFolderPermissions() {
+        if (!this.currentEditingPath) return;
+        this.setFolderPermissions(this.currentEditingPath, { ...this.defaultPermissions });
+        this.closePermissionPanel();
+    }
+
+    showSuccessPopup(message, duration = 1500) {
+        const modalContent = `
+            <div class="modal-header" style="background-color: #27ae60; color: white; border-radius: 8px 8px 0 0;">
+                <h3>✅ Success!</h3>
+                <button class="close-btn" onclick="fileBrowser.closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <p style="font-size: 1.1em; font-weight: bold;">${message}</p>
+            </div>
+        `;
+
+        this.showModal(modalContent, 'success-modal');
+
+        setTimeout(() => {
+            this.closeModal();
+        }, duration);
+    }
+
+    showContextMenu(x, y, row) {
+        // Remove existing context menu
+        const existingMenu = document.querySelector('.context-menu');
+        if (existingMenu) {
+            document.body.removeChild(existingMenu);
+        }
+
+        const path = row.dataset.path;
+        if (!path) return;
+
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+
+        const currentPerms = this.getFolderPermissions(path);
+        const isRestricted = !currentPerms.read || !currentPerms.download;
+
+        menu.innerHTML = `
+            <div class="menu-item" onclick="fileBrowser.openPermissionPanel('${path}')">🛡️ Manage Permissions</div>
+            <div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {read: true, download: true, search: true, delete: true})">✅ Allow Full Access</div>
+            <div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {read: false, download: false, delete: false})">❌ Block Completely</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" onclick="fileBrowser.loadDirectory('${path}')">📁 Open Directory</div>
+            ${currentPerms.delete ? `<div class="menu-item" onclick="fileBrowser.deleteFile('${path}')" style="color: #e74c3c;">🗑️ Delete Folder</div>` : ''}
+            ${isRestricted ? `<div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {})">🔓 Remove Restrictions</div>` : ''}
+        `;
+
+        document.body.appendChild(menu);
+
+        // Close menu when clicking elsewhere
+        setTimeout(() => {
+            document.addEventListener('click', function closeMenu() {
+                if (document.body.contains(menu)) {
+                    document.body.removeChild(menu);
+                }
+                document.removeEventListener('click', closeMenu);
+            });
+        }, 100);
     }
 }
 
-// Permission Panel Functions
-let currentEditingPath = '';
-
-function openPermissionPanel(path) {
-    currentEditingPath = path;
-    const panel = document.getElementById('permissionPanel');
-    const pathSpan = document.getElementById('currentPermissionPath');
-
-    pathSpan.textContent = path;
-
-    // Load current permissions
-    const currentPerms = fileBrowser.getFolderPermissions(path);
-    document.getElementById('permReadFolder').checked = currentPerms.read;
-    document.getElementById('permWriteFolder').checked = currentPerms.write;
-    document.getElementById('permDownloadFolder').checked = currentPerms.download;
-    document.getElementById('permExecuteFolder').checked = currentPerms.execute;
-    document.getElementById('permSearchFolder').checked = currentPerms.search;
-    document.getElementById('permDeleteFolder').checked = currentPerms.delete;
-
-    panel.classList.remove('hidden');
-}
-
-function closePermissionPanel() {
-    document.getElementById('permissionPanel').classList.add('hidden');
-    currentEditingPath = '';
-}
-
-function applyFolderPermissions() {
-    if (!currentEditingPath) return;
-
-    const newPerms = {
-        read: document.getElementById('permReadFolder').checked,
-        write: document.getElementById('permWriteFolder').checked,
-        download: document.getElementById('permDownloadFolder').checked,
-        execute: document.getElementById('permExecuteFolder').checked,
-        search: document.getElementById('permSearchFolder').checked,
-        delete: document.getElementById('permDeleteFolder').checked
-    };
-
-    fileBrowser.setFolderPermissions(currentEditingPath, newPerms);
-    closePermissionPanel();
-}
-
-function resetFolderPermissions() {
-    if (!currentEditingPath) return;
-    fileBrowser.setFolderPermissions(currentEditingPath, { ...fileBrowser.defaultPermissions });
-    closePermissionPanel();
-}
-
-// Context Menu
-document.addEventListener('contextmenu', function(e) {
-    const row = e.target.closest('tr');
-    if (row && row.classList.contains('directory')) {
-        e.preventDefault();
-        showContextMenu(e.pageX, e.pageY, row);
-    }
-});
-
-function showContextMenu(x, y, row) {
-    // Remove existing context menu
-    const existingMenu = document.querySelector('.context-menu');
-    if (existingMenu) {
-        document.body.removeChild(existingMenu);
-    }
-
-    const path = row.dataset.path;
-    if (!path) return;
-
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
-
-    const currentPerms = fileBrowser.getFolderPermissions(path);
-    const isRestricted = !currentPerms.read || !currentPerms.download;
-
-    menu.innerHTML = `
-        <div class="menu-item" onclick="openPermissionPanel('${path}')">🛡️ Manage Permissions</div>
-        <div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {read: true, download: true, search: true, delete: true})">✅ Allow Full Access</div>
-        <div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {read: false, download: false, delete: false})">❌ Block Completely</div>
-        <div class="menu-divider"></div>
-        <div class="menu-item" onclick="fileBrowser.loadDirectory('${path}')">📁 Open Directory</div>
-        ${currentPerms.delete ? `<div class="menu-item" onclick="fileBrowser.deleteFile('${path}')" style="color: #e74c3c;">🗑️ Delete Folder</div>` : ''}
-        ${isRestricted ? `<div class="menu-item" onclick="fileBrowser.setFolderPermissions('${path}', {})">🔓 Remove Restrictions</div>` : ''}
-    `;
-
-    document.body.appendChild(menu);
-
-    // Close menu when clicking elsewhere
-    setTimeout(() => {
-        document.addEventListener('click', function closeMenu() {
-            if (document.body.contains(menu)) {
-                document.body.removeChild(menu);
-            }
-            document.removeEventListener('click', closeMenu);
-        });
-    }, 100);
-}
-
-// Global functions
+// Create global instance
 const fileBrowser = new FileBrowser();
 
+// Global functions for HTML onclick handlers
 function connectAgent() {
     fileBrowser.connectAgent();
 }
@@ -824,24 +942,14 @@ function downloadCurrent() {
     fileBrowser.downloadCurrent();
 }
 
-// Handle Enter key in search input
-document.getElementById('searchInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        searchFiles();
-    }
-});
+function applyFolderPermissions() {
+    fileBrowser.applyFolderPermissions();
+}
 
-// Close permission panel when clicking outside
-document.addEventListener('click', function(e) {
-    const panel = document.getElementById('permissionPanel');
-    if (!panel.classList.contains('hidden') && !panel.contains(e.target)) {
-        closePermissionPanel();
-    }
-});
+function closePermissionPanel() {
+    fileBrowser.closePermissionPanel();
+}
 
-// Close modal when clicking outside
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
-        closeModal();
-    }
-});
+function resetFolderPermissions() {
+    fileBrowser.resetFolderPermissions();
+}

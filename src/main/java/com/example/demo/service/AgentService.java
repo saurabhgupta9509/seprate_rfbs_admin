@@ -1,11 +1,14 @@
 package com.example.demo.service;
 
-import lombok.extern.slf4j.Slf4j;
+import com.example.demo.model.DlpPolicyRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
+
 
 @Service
 public class AgentService {
@@ -26,19 +29,54 @@ public class AgentService {
                 .onErrorResume(e -> Mono.just("{\"error\": \"Agent not reachable: " + e.getMessage() + "\"}"));
     }
 
-    public Mono<String> listDirectory(String agentUrl, String path) {
-        // Normalize path before sending
-        String normalizedPath = normalizePath(path);
-        String requestBody = String.format("{\"path\": \"%s\"}", escapeJson(normalizedPath));
+//    public Mono<String> listDirectory(String agentUrl, String path) {
+//        // Normalize path before sending
+//        String normalizedPath = normalizePath(path);
+//        String requestBody = String.format("{\"path\": \"%s\"}", escapeJson(normalizedPath));
+//
+//        return webClient.post()
+//                .uri(agentUrl + "/api/files/list")
+//                .header("Content-Type", "application/json")
+//                .bodyValue(requestBody)
+//                .retrieve()
+//                .bodyToMono(String.class)
+//                .onErrorResume(e -> Mono.just("{\"success\": false, \"error\": \"Connection failed: " + e.getMessage() + "\"}"));
+//    }
+public Mono<String> listDirectory(String agentUrl, String path) {
+    // Normalize path before sending
+    String normalizedPath = normalizePath(path);
+    String requestBody = String.format("{\"path\": \"%s\"}", escapeJson(normalizedPath));
 
+    return webClient.post()
+            .uri(agentUrl + "/api/files/list")
+            .header("Content-Type", "application/json")
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(String.class)
+            // --- MODIFIED ERROR HANDLING ---
+            .onErrorResume(e -> {
+                // This block executes if the WebClient itself fails to connect to the agent
+                log.error("Agent unreachable for listDirectory at {}: {}", agentUrl, e.getMessage());
+
+                // Return a specific JSON payload that mimics an 'offline' state
+                return Mono.just("{\"success\": false, \"error\": \"Agent connection failed\", \"offline_proxy_fail\": true}");
+            });
+    // --- END MODIFIED ERROR HANDLING ---
+}
+
+    public Mono<String> sendFullPolicyUpdate(String agentUrl, Map<String, DlpPolicyRule> fullPolicyMap) {
+        // The Rust Agent expects a JSON map of "path" -> {policy_object}
+        // WebClient handles the serialization of the Map<String, DlpPolicyRule> into a JSON object automatically.
         return webClient.post()
-                .uri(agentUrl + "/api/files/list")
+                .uri(agentUrl + "/api/config/dlp-policy")
                 .header("Content-Type", "application/json")
-                .bodyValue(requestBody)
+                .bodyValue(fullPolicyMap)
                 .retrieve()
                 .bodyToMono(String.class)
-                .onErrorResume(e -> Mono.just("{\"success\": false, \"error\": \"Connection failed: " + e.getMessage() + "\"}"));
+                .doOnError(e -> log.error("Error pushing policy to agent {}: {}", agentUrl, e.getMessage()))
+                .onErrorResume(e -> Mono.just("{\"success\": false, \"error\": \"Policy push failed\"}"));
     }
+
 
     public Mono<byte[]> downloadFile(String agentUrl, String path, boolean compress) {
         // Normalize path before sending
@@ -58,6 +96,19 @@ public class AgentService {
                 });
     }
 
+    public Mono<String> deleteFile(String agentUrl, String path) {
+        String normalizedPath = normalizePath(path);
+        // The Rust Agent expects a DirectoryRequest structure
+        String requestBody = String.format("{\"path\": \"%s\"}", escapeJson(normalizedPath));
+
+        return webClient.post()
+                .uri(agentUrl + "/api/files/delete") // Matches the Rust route
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .onErrorResume(e -> Mono.just("{\"success\": false, \"error\": \"Deletion network failure: " + e.getMessage() + "\"}"));
+    }
 
     public Mono<String> checkPermission(String agentUrl, String path, String operation) {
         String requestBody = String.format("{\"path\": \"%s\", \"operation\": \"%s\"}",
